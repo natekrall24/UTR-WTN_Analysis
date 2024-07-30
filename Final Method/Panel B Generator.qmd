@@ -1,0 +1,230 @@
+---
+title: "Panel B Generator"
+format: html
+editor: visual
+---
+
+## Table 1 Panel B Generation
+
+```{r}
+library(haven)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+table1 <- read_dta("~/Desktop/Tennis Research/Revision Work/NewMethod/HAT_Table1PanelBC_NN.dta")
+```
+
+```{r}
+table1 <- table1 |>
+  mutate(FAVORED_PLAYER_WINS_UTR = ifelse((P1_UTR > P2_UTR & WINNER == "1") | (P1_UTR < P2_UTR & WINNER == "2"), 1, 0)) |>
+  mutate(FAVORED_PLAYER_WINS_WTN = ifelse((P1_WTN < P2_WTN & WINNER == "1") | (P1_WTN > P2_WTN & WINNER == "2"), 1, 0))
+```
+
+```{r}
+#Table 1 Panel B construct WTN
+overall_percentage <- sum(table1$FAVORED_PLAYER_WINS_WTN) / nrow(table1)
+
+B18_percentage <- sum(ifelse(table1$EVENT == "B18" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table1$EVENT == "B18", 1, 0))
+B16_percentage <- sum(ifelse(table1$EVENT == "B16" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table1$EVENT == "B16", 1, 0))
+G18_percentage <- sum(ifelse(table1$EVENT == "G18" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table1$EVENT == "G18", 1, 0))
+G16_percentage <- sum(ifelse(table1$EVENT == "G16" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table1$EVENT == "G16", 1, 0))
+                        
+panel_B <- data.frame(
+  
+  OVERALL_P__N_1426 = round(overall_percentage, digits=4)*100,
+  Boys_18U_P__N_358 = round(B18_percentage, digits=4)*100,
+  Boys_16U_P__N_367 = round(B16_percentage, digits=4)*100,
+  Girls_18U_P__N_338 = round(G18_percentage, digits=4)*100,
+  Girls_16U_P__N_363 = round(G16_percentage, digits=4)*100
+)
+
+panel_B_Ns <- data.frame(
+  OVERALL_N = sum(table1$FAVORED_PLAYER_WINS_WTN),
+  Boys_18U_N = sum(ifelse(table1$EVENT == "B18" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0)),
+  Boys_16U_N = sum(ifelse(table1$EVENT == "B16" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0)),
+  Girls_18U_N = sum(ifelse(table1$EVENT == "G18" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0)),
+  Girls_16U_N = sum(ifelse(table1$EVENT == "G16" & table1$FAVORED_PLAYER_WINS_WTN, 1, 0))
+)
+```
+
+```{r}
+#Table 1 Panel B construct UTR
+overall_percentage <- sum(table1$FAVORED_PLAYER_WINS_UTR) / nrow(table1)
+
+B18_percentage <- sum(ifelse(table1$EVENT == "B18" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0)) / sum(ifelse(table1$EVENT == "B18", 1, 0))
+B16_percentage <- sum(ifelse(table1$EVENT == "B16" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0)) / sum(ifelse(table1$EVENT == "B16", 1, 0))
+G18_percentage <- sum(ifelse(table1$EVENT == "G18" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0)) / sum(ifelse(table1$EVENT == "G18", 1, 0))
+G16_percentage <- sum(ifelse(table1$EVENT == "G16" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0)) / sum(ifelse(table1$EVENT == "G16", 1, 0))
+                        
+
+panel_B_UTR <- c(
+  OVERALL_P__N_1426 = round(overall_percentage, digits=4)*100,
+  Boys_18U_P__N_358 = round(B18_percentage, digits=4)*100,
+  Boys_16U_P__N_367 = round(B16_percentage, digits=4)*100,
+  Girls_18U_P__N_338 = round(G18_percentage, digits=4)*100,
+  Girls_16U_P__N_363 = round(G16_percentage, digits=4)*100
+)
+
+panel_B_Ns_UTR <- data.frame(
+  OVERALL_N = sum(table1$FAVORED_PLAYER_WINS_UTR),
+  Boys_18U_N = sum(ifelse(table1$EVENT == "B18" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0)),
+  Boys_16U_N = sum(ifelse(table1$EVENT == "B16" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0)),
+  Girls_18U_N = sum(ifelse(table1$EVENT == "G18" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0)),
+  Girls_16U_N = sum(ifelse(table1$EVENT == "G16" & table1$FAVORED_PLAYER_WINS_UTR, 1, 0))
+)
+
+panel_B <- rbind(panel_B, panel_B_UTR)
+panel_B_Ns <- rbind(panel_B_Ns, panel_B_Ns_UTR)
+rownames(panel_B_Ns) <- c("FAVORED PLAYER WINS WTN", "FAVORED PLAYER WINS UTR")
+```
+
+```{r}
+#Get p-values
+B18 <- table1[table1$EVENT =="B18", ]
+B16 <- table1[table1$EVENT =="B16", ]
+G18 <- table1[table1$EVENT =="G18", ]
+G16 <- table1[table1$EVENT =="G16", ]
+
+mcnemar_test <- function(table){
+  paired_data <- table(WTN = table$FAVORED_PLAYER_WINS_WTN, UTR = table$FAVORED_PLAYER_WINS_UTR)
+  return(round(mcnemar.test(paired_data, correct = FALSE)$p.value, digits = 2))
+}
+
+pvals <- c(mcnemar_test(table1), mcnemar_test(B18), mcnemar_test(B16), mcnemar_test(G18), mcnemar_test(G16))
+panel_B <- rbind(panel_B, pvals)
+rownames(panel_B) <- c("FAVORED PLAYER WINS WTN", "FAVORED PLAYER WINS UTR", "P-value test")
+```
+
+```{r}
+#Display table
+data_table <- data.frame(
+  VARIABLE = rep(c("FAVORED PLAYER WINS_WTN", "FAVORED PLAYER WINS_UTR", "P-value of test of equal proportions+"), 5),
+  CATEGORY = rep(c("OVERALL (N=1,426)", "Boys 18u (n=358)", "Boys 16u (n=367)", "Girls 18u (n=338)", "Girls 16u (n=363)"), each = 3),
+  NUMBER = c(panel_B_Ns$OVERALL_N[1], panel_B_Ns$OVERALL_N[2], "", 
+             panel_B_Ns$Boys_18U_N[1], panel_B_Ns$Boys_18U_N[2], "", 
+             panel_B_Ns$Boys_16U_N[1], panel_B_Ns$Boys_16U_N[2], "", 
+             panel_B_Ns$Girls_18U_N[1], panel_B_Ns$Girls_18U_N[2], "", 
+             panel_B_Ns$Girls_16U_N[1], panel_B_Ns$Girls_16U_N[2], ""),
+  PERCENTAGE = c(panel_B$OVERALL_P__N_1426[1], panel_B$OVERALL_P__N_1426[2], panel_B$OVERALL_P__N_1426[3],
+                 panel_B$Boys_18U_P__N_358[1], panel_B$Boys_18U_P__N_358[2], panel_B$Boys_18U_P__N_358[3],
+                 panel_B$Boys_16U_P__N_367[1], panel_B$Boys_16U_P__N_367[2], panel_B$Boys_16U_P__N_367[3],
+                 panel_B$Girls_18U_P__N_338[1], panel_B$Girls_18U_P__N_338[2], panel_B$Girls_18U_P__N_338[3],
+                 panel_B$Girls_16U_P__N_363[1], panel_B$Girls_16U_P__N_363[2], panel_B$Girls_16U_P__N_363[3])
+)
+
+data_wide <- reshape(data_table, idvar = "VARIABLE", timevar = "CATEGORY", direction = "wide")
+
+kable(data_wide, "html", col.names = c("VARIABLE", "#", "%", "#", "%", "#", "%", "#", "%", "#", "%")) %>%
+  kable_styling("striped", full_width = F) %>%
+  add_header_above(c(" " = 1, "OVERALL (N=1,426)" = 2, "Boys 18u (n=358)" = 2, "Boys 16u (n=367)" = 2, "Girls 18u (n=338)" = 2, "Girls 16u (n=363)" = 2))
+```
+
+## Table 2 Panel B Generation
+
+```{r}
+table2 <- read_dta("~/Desktop/Tennis Research/Revision Work/NewMethod/HAT_Table2PanelBC_NN.dta")
+```
+
+```{r}
+table2 <- table2 |>
+  mutate(FAVORED_PLAYER_WINS_WTNR = ifelse((P1_WTNR < P2_WTNR & WINNER == "1") | (P1_WTNR > P2_WTNR & WINNER == "2"), 1, 0)) |>
+  mutate(FAVORED_PLAYER_WINS_WTN = ifelse((P1_WTN < P2_WTN & WINNER == "1") | (P1_WTN > P2_WTN & WINNER == "2"), 1, 0))
+```
+
+```{r}
+#Table 2 Panel B construct WTN
+overall_percentage <- sum(table2$FAVORED_PLAYER_WINS_WTN) / nrow(table2)
+B18_percentage <- sum(ifelse(table2$EVENT == "B18" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table2$EVENT == "B18", 1, 0))
+B16_percentage <- sum(ifelse(table2$EVENT == "B16" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table2$EVENT == "B16", 1, 0))
+G18_percentage <- sum(ifelse(table2$EVENT == "G18" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table2$EVENT == "G18", 1, 0))
+G16_percentage <- sum(ifelse(table2$EVENT == "G16" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0)) / sum(ifelse(table2$EVENT == "G16", 1, 0))
+                        
+panel_B_2 <- data.frame(
+  
+  OVERALL_P__N_1426 = round(overall_percentage, digits=4)*100,
+  Boys_18U_P__N_358 = round(B18_percentage, digits=4)*100,
+  Boys_16U_P__N_367 = round(B16_percentage, digits=4)*100,
+  Girls_18U_P__N_338 = round(G18_percentage, digits=4)*100,
+  Girls_16U_P__N_363 = round(G16_percentage, digits=4)*100
+)
+
+panel_B_2_Ns <- data.frame(
+  OVERALL_N = sum(table2$FAVORED_PLAYER_WINS_WTN),
+  Boys_18U_N = sum(ifelse(table2$EVENT == "B18" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0)),
+  Boys_16U_N = sum(ifelse(table2$EVENT == "B16" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0)),
+  Girls_18U_N = sum(ifelse(table2$EVENT == "G18" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0)),
+  Girls_16U_N = sum(ifelse(table2$EVENT == "G16" & table2$FAVORED_PLAYER_WINS_WTN, 1, 0))
+)
+```
+
+```{r}
+#Table 2 Panel B construct WTNR
+overall_percentage <- sum(table2$FAVORED_PLAYER_WINS_WTNR) / nrow(table2)
+
+B18_percentage <- sum(ifelse(table2$EVENT == "B18" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0)) / sum(ifelse(table2$EVENT == "B18", 1, 0))
+B16_percentage <- sum(ifelse(table2$EVENT == "B16" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0)) / sum(ifelse(table2$EVENT == "B16", 1, 0))
+G18_percentage <- sum(ifelse(table2$EVENT == "G18" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0)) / sum(ifelse(table2$EVENT == "G18", 1, 0))
+G16_percentage <- sum(ifelse(table2$EVENT == "G16" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0)) / sum(ifelse(table2$EVENT == "G16", 1, 0))
+                        
+
+panel_B_2_WTNR <- c(
+  OVERALL_P__N_1530 = round(overall_percentage, digits=4)*100,
+  Boys_18U_P__N_337 = round(B18_percentage, digits=4)*100,
+  Boys_16U_P__N_401 = round(B16_percentage, digits=4)*100,
+  Girls_18U_P__N_375 = round(G18_percentage, digits=4)*100,
+  Girls_16U_P__N_417 = round(G16_percentage, digits=4)*100
+)
+
+panel_B_2_Ns_WTNR <- data.frame(
+  OVERALL_N = sum(table2$FAVORED_PLAYER_WINS_WTNR),
+  Boys_18U_N = sum(ifelse(table2$EVENT == "B18" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0)),
+  Boys_16U_N = sum(ifelse(table2$EVENT == "B16" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0)),
+  Girls_18U_N = sum(ifelse(table2$EVENT == "G18" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0)),
+  Girls_16U_N = sum(ifelse(table2$EVENT == "G16" & table2$FAVORED_PLAYER_WINS_WTNR, 1, 0))
+)
+
+panel_B_2 <- rbind(panel_B_2, panel_B_2_WTNR)
+panel_B_2_Ns <- rbind(panel_B_2_Ns, panel_B_2_Ns_WTNR)
+rownames(panel_B_2_Ns) <- c("FAVORED PLAYER WINS WTN", "FAVORED PLAYER WINS WTNR")
+```
+
+```{r}
+#Get p-values
+B18 <- table2[table2$EVENT =="B18", ]
+B16 <- table2[table2$EVENT =="B16", ]
+G18 <- table2[table2$EVENT =="G18", ]
+G16 <- table2[table2$EVENT =="G16", ]
+
+mcnemar_test <- function(table){
+  paired_data <- table(WTN = table$FAVORED_PLAYER_WINS_WTN, WTNR = table$FAVORED_PLAYER_WINS_WTNR)
+  return(round(mcnemar.test(paired_data, correct = FALSE)$p.value, digits = 2))
+}
+
+pvals <- c(mcnemar_test(table2), mcnemar_test(B18), mcnemar_test(B16), mcnemar_test(G18), mcnemar_test(G16))
+panel_B_2 <- rbind(panel_B_2, pvals)
+rownames(panel_B_2) <- c("FAVORED PLAYER WINS WTN", "FAVORED PLAYER WINS WTNR", "P-value test")
+```
+
+```{r}
+#display table
+data_table_2 <- data.frame(
+  VARIABLE = rep(c("FAVORED PLAYER WINS_WTN", "FAVORED PLAYER WINS_WTNR", "P-value of test of equal proportions+"), 5),
+  CATEGORY = rep(c("OVERALL (N=1,530)", "Boys 18u (n=337)", "Boys 16u (n=401)", "Girls 18u (n=375)", "Girls 16u (n=417)"), each = 3),
+  NUMBER = c(panel_B_2_Ns$OVERALL_N[1], panel_B_2_Ns$OVERALL_N[2], "", 
+             panel_B_2_Ns$Boys_18U_N[1], panel_B_2_Ns$Boys_18U_N[2], "", 
+             panel_B_2_Ns$Boys_16U_N[1], panel_B_2_Ns$Boys_16U_N[2], "", 
+             panel_B_2_Ns$Girls_18U_N[1], panel_B_2_Ns$Girls_18U_N[2], "", 
+             panel_B_2_Ns$Girls_16U_N[1], panel_B_2_Ns$Girls_16U_N[2], ""),
+  PERCENTAGE = c(panel_B_2$OVERALL_P__N_1426[1], panel_B_2$OVERALL_P__N_1426[2], panel_B_2$OVERALL_P__N_1426[3],
+                 panel_B_2$Boys_18U_P__N_358[1], panel_B_2$Boys_18U_P__N_358[2], panel_B_2$Boys_18U_P__N_358[3],
+                 panel_B_2$Boys_16U_P__N_367[1], panel_B_2$Boys_16U_P__N_367[2], panel_B_2$Boys_16U_P__N_367[3],
+                 panel_B_2$Girls_18U_P__N_338[1], panel_B_2$Girls_18U_P__N_338[2], panel_B_2$Girls_18U_P__N_338[3],
+                 panel_B_2$Girls_16U_P__N_363[1], panel_B_2$Girls_16U_P__N_363[2], panel_B_2$Girls_16U_P__N_363[3])
+)
+
+data_wide_2 <- reshape(data_table_2, idvar = "VARIABLE", timevar = "CATEGORY", direction = "wide")
+
+kable(data_wide_2, "html", col.names = c("VARIABLE", "#", "%", "#", "%", "#", "%", "#", "%", "#", "%")) %>%
+  kable_styling("striped", full_width = F) %>%
+  add_header_above(c(" " = 1, "OVERALL (N=1,530)" = 2, "Boys 18u (n=337)" = 2, "Boys 16u (n=401)" = 2, "Girls 18u (n=375)" = 2, "Girls 16u (n=417)" = 2))
+```

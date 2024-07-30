@@ -1,0 +1,238 @@
+---
+title: "Panel C Generator"
+format: html
+editor: visual
+---
+
+```{r}
+#load libraries and data
+library(knitr)
+library(kableExtra)
+library(DescTools)
+library(haven)
+library(dplyr)
+library(pROC)
+table1 <- read_dta("~/Desktop/Tennis Research/Revision Work/NewMethod/HAT_Table1PanelBC_NN.dta")
+table2 <- read_dta("~/Desktop/Tennis Research/Revision Work/NewMethod/HAT_Table2PanelBC_NN.dta")
+```
+
+## Add indicators to both tables
+
+```{r}
+table1 <- table1 |>
+  mutate(REF_WON = ifelse(WINNER == RANDOM_REF, 1, 0)) |>
+  mutate(UTR_DIFF = ifelse(RANDOM_REF == "1", P1_UTR-P2_UTR, P2_UTR-P1_UTR)) |>
+  mutate(WTN_DIFF = ifelse(RANDOM_REF == "1", P1_WTN-P2_WTN, P2_WTN-P1_WTN))
+table1$REF_WON <- as.factor(table1$REF_WON)
+
+table2 <- table2 |>
+  mutate(REF_WON = ifelse(WINNER == RANDOM_REF, 1, 0)) |>
+  mutate(WTNR_DIFF = ifelse(RANDOM_REF == "1", P1_WTNR-P2_WTNR, P2_WTNR-P1_WTNR)) |>
+  mutate(WTN_DIFF = ifelse(RANDOM_REF == "1", P1_WTN-P2_WTN, P2_WTN-P1_WTN))
+table1$REF_WON <- as.factor(table1$REF_WON)
+```
+
+## Table 1 Panel C Generation
+
+```{r}
+get_auc_stats <- function(table) {
+  glm_UTR <- glm(REF_WON ~ UTR_DIFF, family = binomial, data = table)
+  glm_WTN <- glm(REF_WON ~ WTN_DIFF, family = binomial, data = table)
+    
+  roc_UTR <- roc(table$REF_WON, predict(glm_UTR, type = "response"), quiet = TRUE)
+  roc_WTN <- roc(table$REF_WON, predict(glm_WTN, type = "response"), quiet = TRUE)
+    
+  auc_UTR <- auc(roc_UTR)
+  auc_WTN <- auc(roc_WTN)
+  
+  auc_UTR_CI <- ci.auc(roc_UTR)
+  auc_WTN_CI <- ci.auc(roc_WTN)
+  
+  roc_test <- roc.test(roc_UTR, roc_WTN, method = "delong", progress = "none")
+  
+  return(c(auc_UTR, auc_UTR_CI[1], auc_UTR_CI[3], auc_WTN, auc_WTN_CI[1], auc_WTN_CI[3], roc_test$p.value))
+}
+```
+
+```{r}
+get_brier_stats <- function(table) {
+  glm_UTR <- glm(REF_WON ~ UTR_DIFF, family = binomial, data = table)
+  UTR_pred <- predict(glm_UTR, type='response')
+  brierScores_UTR <- (UTR_pred - (as.numeric(table$REF_WON)-1))^2
+  brier_UTR <- mean(brierScores_UTR)
+  conf_int_UTR <- c(t.test(brierScores_UTR)$conf.int[1], t.test(brierScores_UTR)$conf.int[2])
+  
+  glm_WTN <- glm(REF_WON ~ WTN_DIFF, family = binomial, data = table)
+  WTN_pred <- predict(glm_WTN, type='response')
+  brierScores_WTN <- (WTN_pred - (as.numeric(table$REF_WON)-1))^2
+  brier_WTN <- mean(brierScores_WTN)
+  conf_int_WTN <- c(t.test(brierScores_WTN)$conf.int[1], t.test(brierScores_WTN)$conf.int[2])
+  
+  pval <- t.test(brierScores_WTN, brierScores_UTR, paired = TRUE)$p.value
+  
+  return(c(brier_UTR, conf_int_UTR[1], conf_int_UTR[2], brier_WTN, conf_int_WTN[1], conf_int_WTN[2], pval))
+}
+```
+
+```{r}
+B18 <- table1[table1$EVENT =="B18", ]
+B16 <- table1[table1$EVENT =="B16", ]
+G18 <- table1[table1$EVENT =="G18", ]
+G16 <- table1[table1$EVENT =="G16", ]
+```
+
+```{r}
+#display the table
+extract_stats <- function(table) {
+  auc <- get_auc_stats(table)
+  brier <- get_brier_stats(table)
+  
+  list(
+    AUC_UTR = paste(round(auc[1], digits = 3)),
+    AUC_UTR_CI = paste(round(auc[2], digits = 3), round(auc[3], digits = 3), sep = "-"),
+    AUC_WTN = paste(round(auc[4], digits = 3)),
+    AUC_WTN_CI = paste(round(auc[5], digits = 3), round(auc[6], digits = 3), sep = "-"),
+    pval_auc = paste(round(auc[7], digits = 3)),
+    B_UTR = paste(round(brier[1], digits = 3)),
+    B_UTR_CI = paste(round(brier[2], digits = 3), round(brier[3], digits = 3), sep = "-"),
+    B_WTN = paste(round(brier[4], digits = 3)),
+    B_WTN_CI = paste(round(brier[5], digits = 3), round(brier[6], digits = 3), sep = "-"),
+    pval_b = paste(round(brier[7], digits = 3))
+  )
+}
+
+stats_overall <- extract_stats(table1)
+stats_b18 <- extract_stats(B18)
+stats_b16 <- extract_stats(B16)
+stats_g18 <- extract_stats(G18)
+stats_g16 <- extract_stats(G16)
+
+data <- data.frame(
+  VARIABLE = rep(c("AUC_WTN", "AUC_UTR", "P-value of test: AUC_WTN=AUC_UTR", "BRIER_WTN", "BRIER_UTR", "P-value of test: BRIER_WTN=BRIER_UTR"), 5),
+  CATEGORY = rep(c("OVERALL (N=1,426)", "Boys 18u (n=358)", "Boys 16u (n=367)", "Girls 18u (n=338)", "Girls 16u (n=363)"), each = 6),
+  EST = c(
+    stats_overall$AUC_WTN, stats_overall$AUC_UTR, stats_overall$pval_auc, stats_overall$B_WTN, stats_overall$B_UTR, stats_overall$pval_b,
+    stats_b18$AUC_WTN, stats_b18$AUC_UTR, stats_b18$pval_auc, stats_b18$B_WTN, stats_b18$B_UTR, stats_b18$pval_b,
+    stats_b16$AUC_WTN, stats_b16$AUC_UTR, stats_b16$pval_auc, stats_b16$B_WTN, stats_b16$B_UTR, stats_b16$pval_b,
+    stats_g18$AUC_WTN, stats_g18$AUC_UTR, stats_g18$pval_auc, stats_g18$B_WTN, stats_g18$B_UTR, stats_g18$pval_b,
+    stats_g16$AUC_WTN, stats_g16$AUC_UTR, stats_g16$pval_auc, stats_g16$B_WTN, stats_g16$B_UTR, stats_g16$pval_b
+  ),
+  CI = c(
+    stats_overall$AUC_WTN_CI, stats_overall$AUC_UTR_CI, "", stats_overall$B_WTN_CI, stats_overall$B_UTR_CI, "",
+    stats_b18$AUC_WTN_CI, stats_b18$AUC_UTR_CI, "", stats_b18$B_WTN_CI, stats_b18$B_UTR_CI, "",
+    stats_b16$AUC_WTN_CI, stats_b16$AUC_UTR_CI, "", stats_b16$B_WTN_CI, stats_b16$B_UTR_CI, "",
+    stats_g18$AUC_WTN_CI, stats_g18$AUC_UTR_CI, "", stats_g18$B_WTN_CI, stats_g18$B_UTR_CI, "",
+    stats_g16$AUC_WTN_CI, stats_g16$AUC_UTR_CI, "", stats_g16$B_WTN_CI, stats_g16$B_UTR_CI, ""
+  )
+)
+
+data_wide <- reshape(data, idvar = "VARIABLE", timevar = "CATEGORY", direction = "wide")
+
+kable(data_wide, "html", col.names = c("VARIABLE", "EST", "95% CI", "EST", "95% CI", "EST", "95% CI", "EST", "95% CI", "EST", "95% CI")) %>%
+  kable_styling("striped", full_width = F) %>%
+  add_header_above(c(" " = 1, "OVERALL (N=1,426)" = 2, "Boys 18u (n=358)" = 2, "Boys 16u (n=367)" = 2, "Girls 18u (n=338)" = 2, "Girls 16u (n=363)" = 2))
+```
+
+## Table 2 Panel C Generation
+
+```{r}
+get_auc_stats_RESTATED <- function(table) {
+  glm_WTNR <- glm(REF_WON ~ WTNR_DIFF, family = binomial, data = table)
+  glm_WTN <- glm(REF_WON ~ WTN_DIFF, family = binomial, data = table)
+    
+  roc_WTNR <- roc(table$REF_WON, predict(glm_WTNR, type = "response"), quiet = TRUE)
+  roc_WTN <- roc(table$REF_WON, predict(glm_WTN, type = "response"), quiet = TRUE)
+    
+  auc_WTNR <- auc(roc_WTNR)
+  auc_WTN <- auc(roc_WTN)
+  
+  auc_WTNR_CI <- ci.auc(roc_WTNR)
+  auc_WTN_CI <- ci.auc(roc_WTN)
+  
+  roc_test <- roc.test(roc_WTNR, roc_WTN, method = "delong", progress = "none")
+  
+  return(c(auc_WTNR, auc_WTNR_CI[1], auc_WTNR_CI[3], auc_WTN, auc_WTN_CI[1], auc_WTN_CI[3], roc_test$p.value))
+}
+```
+
+```{r}
+get_brier_stats_RESTATED <- function(table) {
+  glm_WTNR <- glm(REF_WON ~ WTNR_DIFF, family = binomial, data = table)
+  WTNR_pred <- predict(glm_WTNR, type='response')
+  brierScores_WTNR <- (WTNR_pred - (as.numeric(table$REF_WON)))^2
+  brier_WTNR <- mean(brierScores_WTNR)
+  conf_int_WTNR <- c(t.test(brierScores_WTNR)$conf.int[1], t.test(brierScores_WTNR)$conf.int[2])
+  
+  glm_WTN <- glm(REF_WON ~ WTN_DIFF, family = binomial, data = table)
+  WTN_pred <- predict(glm_WTN, type='response')
+  brierScores_WTN <- (WTN_pred - (as.numeric(table$REF_WON)))^2
+  brier_WTN <- mean(brierScores_WTN)
+  conf_int_WTN <- c(t.test(brierScores_WTN)$conf.int[1], t.test(brierScores_WTN)$conf.int[2])
+  
+  pval <- t.test(brierScores_WTN, brierScores_WTNR, paired = TRUE)$p.value
+  
+  return(c(brier_WTNR, conf_int_WTNR[1], conf_int_WTNR[2], brier_WTN, conf_int_WTN[1], conf_int_WTN[2], pval))
+}
+```
+
+```{r}
+B18_RESTATED <- table2[table2$EVENT =="B18", ]
+B16_RESTATED <- table2[table2$EVENT =="B16", ]
+G18_RESTATED <- table2[table2$EVENT =="G18", ]
+G16_RESTATED <- table2[table2$EVENT =="G16", ]
+```
+
+```{r}
+library(knitr)
+library(kableExtra)
+
+extract_stats_RESTATED <- function(table) {
+  auc <- get_auc_stats_RESTATED(table)
+  brier <- get_brier_stats_RESTATED(table)
+  
+  list(
+    AUC_WTNR = paste(round(auc[1], digits = 3)),
+    AUC_WTNR_CI = paste(round(auc[2], digits = 3), round(auc[3], digits = 3), sep = "-"),
+    AUC_WTN = paste(round(auc[4], digits = 3)),
+    AUC_WTN_CI = paste(round(auc[5], digits = 3), round(auc[6], digits = 3), sep = "-"),
+    pval_auc = paste(round(auc[7], digits = 3)),
+    B_WTNR = paste(round(brier[1], digits = 3)),
+    B_WTNR_CI = paste(round(brier[2], digits = 3), round(brier[3], digits = 3), sep = "-"),
+    B_WTN = paste(round(brier[4], digits = 3)),
+    B_WTN_CI = paste(round(brier[5], digits = 3), round(brier[6], digits = 3), sep = "-"),
+    pval_b = paste(round(brier[7], digits = 3))
+  )
+}
+
+stats_overall_RESTATED <- extract_stats_RESTATED(table2)
+stats_b18_RESTATED <- extract_stats_RESTATED(B18_RESTATED)
+stats_b16_RESTATED <- extract_stats_RESTATED(B16_RESTATED)
+stats_g18_RESTATED <- extract_stats_RESTATED(G18_RESTATED)
+stats_g16_RESTATED <- extract_stats_RESTATED(G16_RESTATED)
+
+data_RESTATED <- data.frame(
+  VARIABLE = rep(c("AUC_WTN", "AUC_WTNR", "P-value of test: AUC_WTN=AUC_WTNR", "BRIER_WTN", "BRIER_WTNR", "P-value of test: BRIER_WTN=BRIER_WTNR"), 5),
+  CATEGORY = rep(c("OVERALL (N=1,426)", "Boys 18u (n=358)", "Boys 16u (n=367)", "Girls 18u (n=338)", "Girls 16u (n=363)"), each = 6),
+  EST = c(
+    stats_overall_RESTATED$AUC_WTN, stats_overall_RESTATED$AUC_WTNR, stats_overall_RESTATED$pval_auc, stats_overall_RESTATED$B_WTN, stats_overall_RESTATED$B_WTNR, stats_overall_RESTATED$pval_b,
+    stats_b18_RESTATED$AUC_WTN, stats_b18_RESTATED$AUC_WTNR, stats_b18_RESTATED$pval_auc, stats_b18_RESTATED$B_WTN, stats_b18_RESTATED$B_WTNR, stats_b18_RESTATED$pval_b,
+    stats_b16_RESTATED$AUC_WTN, stats_b16_RESTATED$AUC_WTNR, stats_b16_RESTATED$pval_auc, stats_b16_RESTATED$B_WTN, stats_b16_RESTATED$B_WTNR, stats_b16_RESTATED$pval_b,
+    stats_g18_RESTATED$AUC_WTN, stats_g18_RESTATED$AUC_WTNR, stats_g18_RESTATED$pval_auc, stats_g18_RESTATED$B_WTN, stats_g18_RESTATED$B_WTNR, stats_g18_RESTATED$pval_b,
+    stats_g16_RESTATED$AUC_WTN, stats_g16_RESTATED$AUC_WTNR, stats_g16_RESTATED$pval_auc, stats_g16_RESTATED$B_WTN, stats_g16_RESTATED$B_WTNR, stats_g16_RESTATED$pval_b
+  ),
+  CI = c(
+    stats_overall_RESTATED$AUC_WTN_CI, stats_overall_RESTATED$AUC_WTNR_CI, "", stats_overall_RESTATED$B_WTN_CI, stats_overall_RESTATED$B_WTNR_CI, "",
+    stats_b18_RESTATED$AUC_WTN_CI, stats_b18_RESTATED$AUC_WTNR_CI, "", stats_b18_RESTATED$B_WTN_CI, stats_b18_RESTATED$B_WTNR_CI, "",
+    stats_b16_RESTATED$AUC_WTN_CI, stats_b16_RESTATED$AUC_WTNR_CI, "", stats_b16_RESTATED$B_WTN_CI, stats_b16_RESTATED$B_WTNR_CI, "",
+    stats_g18_RESTATED$AUC_WTN_CI, stats_g18_RESTATED$AUC_WTNR_CI, "", stats_g18_RESTATED$B_WTN_CI, stats_g18_RESTATED$B_WTNR_CI, "",
+    stats_g16_RESTATED$AUC_WTN_CI, stats_g16_RESTATED$AUC_WTNR_CI, "", stats_g16_RESTATED$B_WTN_CI, stats_g16_RESTATED$B_WTNR_CI, ""
+  )
+)
+
+data_wide_RESTATED <- reshape(data_RESTATED, idvar = "VARIABLE", timevar = "CATEGORY", direction = "wide")
+
+# Create the table using kable (restated)
+kable(data_wide_RESTATED, "html", col.names = c("VARIABLE", "EST", "95% CI", "EST", "95% CI", "EST", "95% CI", "EST", "95% CI", "EST", "95% CI")) %>%
+  kable_styling("striped", full_width = F) %>%
+  add_header_above(c(" " = 1, "OVERALL (N=1,530)" = 2, "Boys 18u (n=337)" = 2, "Boys 16u (n=401)" = 2, "Girls 18u (n=375)" = 2, "Girls 16u (n=417)" = 2))
+```
