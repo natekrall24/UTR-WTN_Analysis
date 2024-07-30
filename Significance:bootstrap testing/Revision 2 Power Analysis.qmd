@@ -1,0 +1,145 @@
+---
+title: "Revision 2 Power Analysis"
+format: pdf
+editor: visual
+---
+
+```{r}
+data <- read_dta("~/Desktop/Tennis Research/Revision Work/Table1PanelBC.dta")
+double_data <- rbind(data, data)
+
+p_values_table <- data.frame(
+  column1 = numeric(),
+  column2 = numeric()
+)
+```
+
+```{r}
+calculate_p_value <- function(data) {
+  roc_UTR_full <- roc(data$FAV_UTR_WIN, predict(glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+  roc_WTN_full <- roc(data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+  roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+  
+  return(roc_test$p.value)
+}
+```
+
+```{r}
+#230
+set.seed(1)
+data_230 <- head(double_data, 230)
+p_value <- calculate_p_value(data_230)
+p_values_table <- rbind(p_values_table, c(nrow(data_230), p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#460
+set.seed(1)
+data_460 <- head(double_data, 460)
+p_value <- calculate_p_value(data_460)
+p_values_table <- rbind(p_values_table, c(nrow(data_460), p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#690
+set.seed(1)
+data_690 <- head(double_data, 690)
+p_value <- calculate_p_value(data_690)
+p_values_table <- rbind(p_values_table, c(nrow(data_690), p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#920
+set.seed(1)
+data_920 <- head(double_data, 920)
+p_value <- calculate_p_value(data_920)
+p_values_table <- rbind(p_values_table, c(nrow(data_920), p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#1150
+set.seed(1)
+data_1150 <- head(double_data, 1150)
+p_value <- calculate_p_value(data_1150)
+p_values_table <- rbind(p_values_table, c(1150, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#1380
+set.seed(1)
+data_1380 <- head(double_data, 1380)
+p_value <- calculate_p_value(data_1380)
+p_values_table <- rbind(p_values_table, c(1380, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#1610
+set.seed(1)
+data_1610 <- head(double_data, 1610)
+p_value <- calculate_p_value(data_1610)
+p_values_table <- rbind(p_values_table, c(1610, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#1840
+set.seed(1)
+data_1840 <- head(double_data, 1840)
+p_value <- calculate_p_value(data_1840)
+p_values_table <- rbind(p_values_table, c(1840, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#2070
+set.seed(1)
+data_2070 <- head(double_data, 2070)
+p_value <- calculate_p_value(data_2070)
+p_values_table <- rbind(p_values_table, c(2070, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#2300
+set.seed(1)
+data_2300 <- head(double_data, 2300)
+p_value <- calculate_p_value(data_2300)
+p_values_table <- rbind(p_values_table, c(2300, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#2530
+set.seed(1)
+data_2530 <- head(double_data, 2530)
+p_value <- calculate_p_value(data_2530)
+p_values_table <- rbind(p_values_table, c(2350, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#2760
+set.seed(1)
+data_2760 <- head(double_data, 2760)
+p_value <- calculate_p_value(data_2760)
+p_values_table <- rbind(p_values_table, c(2760, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+#2852
+set.seed(1)
+p_value <- calculate_p_value(double_data)
+p_values_table <- rbind(p_values_table, c(2852, p_value))
+cat("p-value for the test of equivalence of the AUCs:", p_value, "\n")
+```
+
+```{r}
+names(p_values_table) <- c("size", "p-value")
+```

@@ -1,0 +1,261 @@
+---
+title: "Revision 2"
+format: pdf
+editor: visual
+---
+
+## Quarto
+
+```{r}
+library(haven)
+library(dplyr)
+library(pROC)
+```
+
+```{r}
+data <- read_dta("~/Desktop/Tennis Research/Revision Work/Table1PanelBC.dta")
+```
+
+```{r}
+#Retrieve original statistics
+glm_UTR <- glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = data)
+glm_WTN <- glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data)
+  
+  # Calculate AUCs
+roc_UTR <- roc(data$FAV_UTR_WIN, predict(glm_UTR, type = "response"), quiet = TRUE)
+roc_WTN <- roc(data$FAV_WTN_WIN, predict(glm_WTN, type = "response"), quiet = TRUE)
+  
+auc_UTR <- auc(roc_UTR)
+auc_WTN <- auc(roc_WTN)
+  
+auc_UTR
+auc_WTN
+
+ci.auc(roc_UTR)
+ci.auc(roc_WTN)
+```
+
+```{r}
+# ALL MATCHES -- manual bootstrapping (for comparison)
+set.seed(1)
+library(haven)
+library(dplyr)
+library(pROC)
+
+n_iterations <- 1000
+n_sample <- 1426
+auc_UTR <- numeric(n_iterations)
+auc_WTN <- numeric(n_iterations)
+
+# Bootstrap process
+for (i in 1:n_iterations) {
+  # Sample with replacement
+  sample_data <- data |> sample_n(n_sample, replace = TRUE)
+  
+  # Fit logistic regression models
+  glm_UTR <- glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = sample_data)
+  glm_WTN <- glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = sample_data)
+  
+  # Calculate AUCs
+  roc_UTR <- roc(sample_data$FAV_UTR_WIN, predict(glm_UTR, type = "response"), quiet = TRUE)
+  roc_WTN <- roc(sample_data$FAV_WTN_WIN, predict(glm_WTN, type = "response"), quiet = TRUE)
+  
+  auc_UTR[i] <- auc(roc_UTR)
+  auc_WTN[i] <- auc(roc_WTN)
+  
+}
+
+# Calculate mean and 95% CI for UTR
+mean_auc_UTR <- mean(auc_UTR)
+ci_auc_UTR <- quantile(auc_UTR, c(0.025, 0.975))
+
+# Calculate mean and 95% CI for WTN
+mean_auc_WTN <- mean(auc_WTN)
+ci_auc_WTN <- quantile(auc_WTN, c(0.025, 0.975))
+
+# Print results
+cat("Mean AUC for UTR:", mean_auc_UTR, "\n")
+cat("95% CI for AUC UTR:", ci_auc_UTR, "\n")
+cat("Mean AUC for WTN:", mean_auc_WTN, "\n")
+cat("95% CI for AUC WTN:", ci_auc_WTN, "\n")
+```
+
+```{r}
+set.seed(1)
+cat("Overall:\n")
+cat("\n")
+
+# UTR ROC and CI
+roc_UTR_full <- roc(data$FAV_UTR_WIN, predict(glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("UTR:\n")
+ci_utr <- ci.auc(roc_UTR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for UTR:", ci_utr[2], "\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_wtn <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTN:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.stratified = FALSE, boot.n = 370, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+set.seed(1)
+
+# Function to perform bootstrap sampling and ROC test
+bootstrap_roc_test <- function(data, n_bootstrap = 1000, sample_size = 370) {
+  p_values <- numeric(n_bootstrap)
+  
+  for (i in 1:n_bootstrap) {
+    sampled_indices <- sample(1:nrow(data), sample_size, replace = TRUE)
+    sampled_data <- data[sampled_indices, ]
+    
+    roc_UTR <- roc(sampled_data$FAV_UTR_WIN, 
+                   predict(glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = sampled_data), 
+                           type = "response"), 
+                   quiet = TRUE)
+    
+    roc_WTN <- roc(sampled_data$FAV_WTN_WIN, 
+                   predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = sampled_data), 
+                           type = "response"), 
+                   quiet = TRUE)
+    
+    roc_test <- roc.test(roc_UTR, roc_WTN, method = "delong", progress = "none")
+    p_values[i] <- roc_test$p.value
+  }
+  
+  return(mean(p_values))
+}
+
+mean_p_value <- bootstrap_roc_test(data, n_bootstrap = 2000, sample_size = 370)
+cat("Mean p-value for the test of equivalence of the AUCs:", mean_p_value, "\n")
+```
+
+```{r}
+roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.n = 370,boot.stratified = FALSE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#Boys 18u
+set.seed(1)
+filtered_data <- data %>% filter(EVENT == 'B18')
+cat("Boys 18u:\n")
+cat("\n")
+
+# UTR ROC and CI
+roc_UTR_full <- roc(filtered_data$FAV_UTR_WIN, predict(glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("UTR:\n")
+ci_utr <- ci.auc(roc_UTR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for UTR:", ci_utr[2], "\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(filtered_data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_wtn <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTN:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#Boys 16u
+set.seed(1)
+filtered_data <- data %>% filter(EVENT == 'B16')
+cat("Boys 16u:\n")
+cat("\n")
+
+# UTR ROC and CI
+roc_UTR_full <- roc(filtered_data$FAV_UTR_WIN, predict(glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("UTR:\n")
+ci_utr <- ci.auc(roc_UTR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for UTR:", ci_utr[2], "\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(filtered_data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_wtn <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTN:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#Girls 18u
+set.seed(1)
+filtered_data <- data %>% filter(EVENT == 'G18')
+cat("Girls 18u:\n")
+cat("\n")
+
+# UTR ROC and CI
+roc_UTR_full <- roc(filtered_data$FAV_UTR_WIN, predict(glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("UTR:\n")
+ci_utr <- ci.auc(roc_UTR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for UTR:", ci_utr[2], "\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(filtered_data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_wtn <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTN:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#Girls 16u
+set.seed(1)
+filtered_data <- data %>% filter(EVENT == 'G16')
+cat("Girls 16u:\n")
+cat("\n")
+
+# UTR ROC and CI
+roc_UTR_full <- roc(filtered_data$FAV_UTR_WIN, predict(glm(FAV_UTR_WIN ~ UTR_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("UTR:\n")
+ci_utr <- ci.auc(roc_UTR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for UTR:", ci_utr[2], "\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(filtered_data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = filtered_data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_wtn <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTN:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_UTR_full, roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```

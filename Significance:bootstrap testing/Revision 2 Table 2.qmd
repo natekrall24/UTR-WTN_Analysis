@@ -1,0 +1,158 @@
+---
+title: "Revision 2 Table 2"
+format: pdf
+editor: visual
+---
+
+```{r}
+library(haven)
+library(dplyr)
+library(pROC)
+```
+
+```{r}
+data <- read_dta("~/Desktop/Tennis Research/Revision Work/Table2PanelBC.dta")
+```
+
+```{r}
+#OVR
+set.seed(1)
+cat("Overall:\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_utr <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for WTN:", ci_utr[2], "\n")
+cat("\n")
+
+# WTNR ROC and CI
+roc_WTNR_full <- roc(data$FAV_WTNR_WIN, predict(glm(FAV_WTNR_WIN ~ WTNR_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTNR:\n")
+ci_wtn <- ci.auc(roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTNR:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_WTN_full, roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#B18
+set.seed(1)
+data <- read_dta("~/Desktop/Tennis Research/Revision Work/Table2PanelBC.dta")
+data <- data %>% filter(EVENT == 'B18')
+cat("Boys 18u:\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_utr <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for WTN:", ci_utr[2], "\n")
+cat("\n")
+
+# WTNR ROC and CI
+roc_WTNR_full <- roc(data$FAV_WTNR_WIN, predict(glm(FAV_WTNR_WIN ~ WTNR_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTNR:\n")
+ci_wtn <- ci.auc(roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTNR:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_WTN_full, roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#B16
+set.seed(1)
+data <- read_dta("~/Desktop/Tennis Research/Revision Work/Table2PanelBC.dta")
+data <- data %>% filter(EVENT == 'B16')
+cat("Boys 16u:\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_utr <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for WTN:", ci_utr[2], "\n")
+cat("\n")
+
+# WTNR ROC and CI
+roc_WTNR_full <- roc(data$FAV_WTNR_WIN, predict(glm(FAV_WTNR_WIN ~ WTNR_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTNR:\n")
+ci_wtn <- ci.auc(roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTNR:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_WTN_full, roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#G18
+set.seed(1)
+data <- read_dta("~/Desktop/Tennis Research/Revision Work/Table2PanelBC.dta")
+data <- data %>% filter(EVENT == 'G18')
+cat("Girls 18u:\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_utr <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for WTN:", ci_utr[2], "\n")
+cat("\n")
+
+# WTNR ROC and CI
+roc_WTNR_full <- roc(data$FAV_WTNR_WIN, predict(glm(FAV_WTNR_WIN ~ WTNR_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTNR:\n")
+ci_wtn <- ci.auc(roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTNR:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_WTN_full, roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
+
+```{r}
+#G16
+set.seed(1)
+data <- read_dta("~/Desktop/Tennis Research/Revision Work/Table2PanelBC.dta")
+data <- data %>% filter(EVENT == 'G16')
+cat("Girls 16u:\n")
+cat("\n")
+
+# WTN ROC and CI
+roc_WTN_full <- roc(data$FAV_WTN_WIN, predict(glm(FAV_WTN_WIN ~ WTN_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTN:\n")
+ci_utr <- ci.auc(roc_WTN_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_utr)
+cat("Median AUC for WTN:", ci_utr[2], "\n")
+cat("\n")
+
+# WTNR ROC and CI
+roc_WTNR_full <- roc(data$FAV_WTNR_WIN, predict(glm(FAV_WTNR_WIN ~ WTNR_DIFF, family = binomial, data = data), type = "response"), quiet = TRUE)
+cat("WTNR:\n")
+ci_wtn <- ci.auc(roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+print(ci_wtn)
+cat("Median AUC for WTNR:", ci_wtn[2], "\n")
+cat("\n")
+
+# ROC test
+roc_test <- roc.test(roc_WTN_full, roc_WTNR_full, method = "bootstrap", boot.stratified = TRUE, progress = "none")
+cat("p-value for the test of equivalence of the AUCs:", roc_test$p.value, "\n")
+```
